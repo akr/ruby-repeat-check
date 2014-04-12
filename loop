@@ -1,0 +1,29 @@
+#!/usr/bin/ruby
+
+require 'time'
+
+loop {
+  puts Time.now.iso8601
+
+  success = true
+  Dir.glob("*/ruby").sort.each {|ruby_dir|
+    Dir.chdir(ruby_dir) {
+      if !system("make up all install check")
+        success = false
+        puts "ruby build fail:"
+        system("svn info")
+      end
+      puts Time.now.iso8601
+    }
+  }
+  if success
+    # If the above "make check" is failed, the ruby build is broken.
+    # Don't try to test broken ruby.
+    system("./repeat-check")
+    puts Time.now.iso8601
+  end
+
+  puts 'sleep 600'
+  sleep 600
+  system("./clean-check")
+}
