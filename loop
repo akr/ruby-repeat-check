@@ -2,6 +2,7 @@
 
 require 'time'
 
+STDOUT.sync = true
 loop {
   puts Time.now.iso8601
 
