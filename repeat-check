@@ -53,8 +53,12 @@ def master
     filenames ||= []
     old_max = filenames.grep(/\A[0-9]+\z/).map {|n| n.to_i }.max
     old_max ||= -1
+    base = old_max + 1
+    if 1 < num_check
+      base = ((base + num_check - 1) / num_check) * num_check
+    end
     num_check.times {|i|
-      i += old_max + 1
+      i += base + 1
       if num_process <= pids.size
         wait_worker(pids)
       end
