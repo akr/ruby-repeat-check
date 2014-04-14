@@ -20,7 +20,7 @@ end
 def wait_worker(pids)
   pid = Process.wait
   rev, d, i = pids[pid]
-  error = File.exist?("#{d}/out.r#{rev}/error/#{i}") ? "failure" : "success"
+  error = File.exist?("#{d}/out/r#{rev}/error/#{i}") ? "failure" : "success"
   puts "#{Time.now.iso8601} end #{pid} #{pids[pid].join(' ')} #{error}"
   pids.delete(pid)
 end
@@ -49,7 +49,7 @@ def master
   pids = {}
   dirs.each {|d|
     rev = get_ruby_rev(d)
-    filenames = Dir.entries("#{d}/out.r#{rev}") rescue nil
+    filenames = Dir.entries("#{d}/out/r#{rev}") rescue nil
     filenames ||= []
     old_max = filenames.grep(/\A[0-9]+\z/).map {|n| n.to_i }.max
     old_max ||= -1
@@ -75,10 +75,11 @@ def worker
   dir = ARGV.shift
   i = ARGV.shift
   actual_rev = get_ruby_rev(dir)
+  FileUtils.mkpath "error"
   Dir.chdir "#{dir}/ruby"
-  d = "../out.r#{rev}"
+  d = "../out/r#{rev}"
   d_error = "#{d}/error"
-  FileUtils.mkdir_p d_error
+  FileUtils.mkpath d_error
   File.open("#{d}/.log.#{Time.now.strftime("%FT%T")}.#{$$}", File::CREAT|File::WRONLY|File::EXCL) {|log1|
     log1.sync = true
     d_i = "#{d}/#{i}"
@@ -108,6 +109,7 @@ def worker
     File.open("#{d_i}/elapsed-seconds", "w") {|f| f.puts(t2-t1) }
     if !status.success?
       File.symlink("../#{i}", "#{d_error}/#{i}")
+      File.symlink("../#{dir}/out/r#{rev}/#{i}/log", "../../error/r#{rev}.#{dir}.#{i}.log")
     end
     File.unlink("#{d_i}/RUNNING")
     log1.puts t2.strftime("end-time=%s %FT%T%z")

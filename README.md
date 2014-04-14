@@ -23,5 +23,5 @@ Build ruby.
 
     ./loop >& z.log
 
-In other terminal, see `*/out.*/error/*/log`.
+Watch `error/*.log` in another terminal.
 
