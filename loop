@@ -6,8 +6,9 @@ STDOUT.sync = true
 loop {
   puts Time.now.iso8601
 
-  success = true
   Dir.glob("*/ruby").sort.each {|ruby_dir|
+    dir = File.dirname(ruby_dir)
+    success = true
     Dir.chdir(ruby_dir) {
       if !system("make up all install check")
         success = false
@@ -16,13 +17,13 @@ loop {
       end
       puts Time.now.iso8601
     }
+    if success
+      # If the above "make check" is failed, the ruby build is broken.
+      # Don't try to test broken ruby.
+      system("./repeat-check", dir)
+      puts Time.now.iso8601
+    end
   }
-  if success
-    # If the above "make check" is failed, the ruby build is broken.
-    # Don't try to test broken ruby.
-    system("./repeat-check")
-    puts Time.now.iso8601
-  end
 
   puts 'sleep 600'
   sleep 600
