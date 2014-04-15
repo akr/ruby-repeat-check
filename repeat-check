@@ -58,7 +58,7 @@ def master
       base = ((base + num_check - 1) / num_check) * num_check
     end
     num_check.times {|i|
-      i += base + 1
+      i += base
       if num_process <= pids.size
         wait_worker(pids)
       end
