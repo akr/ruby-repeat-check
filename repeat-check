@@ -109,7 +109,8 @@ def worker
     File.open("#{d_i}/elapsed-seconds", "w") {|f| f.puts(t2-t1) }
     if !status.success?
       File.symlink("../#{i}", "#{d_error}/#{i}")
-      File.symlink("../#{dir}/out/r#{rev}/#{i}/log", "../../error/r#{rev}.#{dir}.#{i}.log")
+      t1_str = t1.getutc.strftime("%Y%m%dT%H%M%SZ")
+      File.symlink("../#{dir}/out/r#{rev}/#{i}/log", "../../error/#{t1_str}.r#{rev}.#{dir}.#{i}.log")
     end
     File.unlink("#{d_i}/RUNNING")
     log1.puts t2.strftime("end-time=%s %FT%T%z")
