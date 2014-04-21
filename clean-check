@@ -2,7 +2,7 @@
 
 require 'fileutils'
 
-Dir.glob("*/out.*/*/status").each {|status_filename|
+Dir.glob("*/out/*/*/status").each {|status_filename|
   status = File.read(status_filename)
   if / exit 0\n/ =~ status
     dir = File.dirname(status_filename)
