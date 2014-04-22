@@ -2,10 +2,15 @@
 
 require 'fileutils'
 
-Dir.glob("*/out/*/*/status").each {|status_filename|
-  status = File.read(status_filename)
-  if / exit 0\n/ =~ status
-    dir = File.dirname(status_filename)
-    FileUtils.rm_r dir
-  end
+dirs = ARGV
+dirs = ['*'] if dirs.empty?
+
+dirs.each {|dir|
+  Dir.glob("#{dir}/out/*/*/status").each {|status_filename|
+    status = File.read(status_filename)
+    if / exit 0\n/ =~ status
+      dir = File.dirname(status_filename)
+      FileUtils.rm_r dir
+    end
+  }
 }

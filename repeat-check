@@ -14,14 +14,14 @@ end
 def spawn_worker(pids, rev, d, i)
   pid = spawn(RbConfig.ruby, $0, '--worker--', rev, d, i.to_s)
   pids[pid] = [rev, d, i]
-  puts "#{Time.now.iso8601} start #{pid} #{pids[pid].join(' ')}"
+  puts "#{Time.now.iso8601} #{d}: r#{rev} #{i} pid:#{pid} start"
 end
 
 def wait_worker(pids)
   pid = Process.wait
   rev, d, i = pids[pid]
   error = File.exist?("#{d}/out/r#{rev}/error/#{i}") ? "failure" : "success"
-  puts "#{Time.now.iso8601} end #{pid} #{pids[pid].join(' ')} #{error}"
+  puts "#{Time.now.iso8601} #{d}: r#{rev} #{i} pid:#{pid} end (#{error})"
   pids.delete(pid)
 end
 

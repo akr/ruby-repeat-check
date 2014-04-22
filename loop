@@ -1,31 +1,77 @@
 #!/usr/bin/ruby
 
 require 'time'
+require 'thread'
+require 'fileutils'
 
 STDOUT.sync = true
-loop {
-  puts Time.now.iso8601
 
+def init_queue
+  $build_queue = Queue.new
+  $check_queue = Queue.new
+  $all_dirs = []
   Dir.glob("*/ruby").sort.each {|ruby_dir|
     dir = File.dirname(ruby_dir)
-    success = true
-    Dir.chdir(ruby_dir) {
-      if !system("make up all install check")
-        success = false
-        puts "ruby build fail:"
-        system("svn info")
+    $build_queue.enq dir
+    $all_dirs << dir
+  }
+end
+
+def build_loop
+  build_status = {}
+  loop {
+    dir = $build_queue.deq
+    ruby_dir = "#{dir}/ruby"
+    svn_log_xml = IO.popen(%w[svn log --xml -r BASE:HEAD -l 2] +
+                           [:chdir => ruby_dir]) {|f| f.read }
+    revs = svn_log_xml.scan(/<logentry\s+revision="([0-9]+)">/).map {|r,| r.to_i }
+    if revs.length < 2
+      cur_rev = max_rev = revs[0]
+      puts "#{Time.now.iso8601} #{dir}: no new revision: r#{max_rev} (HEAD)"
+      if $all_dirs.all? {|dir2| build_status.has_key?([dir2, max_rev]) && !build_status[[dir2, max_rev]] }
+        sleep 600
       end
-      puts Time.now.iso8601
-    }
-    if success
-      # If the above "make check" is failed, the ruby build is broken.
-      # Don't try to test broken ruby.
-      system("./repeat-check", dir)
-      puts Time.now.iso8601
+    else
+      cur_rev, max_rev = revs
+      puts "#{Time.now.iso8601} #{dir}: new revision: r#{cur_rev} -> r#{max_rev}"
+    end
+    if cur_rev != max_rev || !build_status.has_key?([dir, max_rev])
+      t1 = Time.now
+      t1_str = t1.getutc.strftime("%Y%m%dT%H%M%SZ")
+      build_log = "#{dir}/out/r#{max_rev}/#{t1_str}.build.log"
+      FileUtils.mkpath File.dirname(build_log)
+      command = "make SVNUPOPTIONS=-r#{max_rev} up all install check"
+      puts "#{t1.iso8601} #{dir}: #{command}"
+      if system(command, :chdir=>ruby_dir, [:out, :err] => [build_log, "w"])
+        puts "#{Time.now.iso8601} #{dir}: build success"
+        build_status[[dir, max_rev]] = true
+      else
+        puts "#{Time.now.iso8601} #{dir}: build failure"
+        build_status[[dir, max_rev]] = false
+      end
+    end
+    if build_status[[dir, max_rev]]
+      $check_queue.enq dir
+    else
+      $build_queue.enq dir
     end
   }
+end
 
-  puts 'sleep 600'
-  sleep 600
-  system("./clean-check")
-}
+def check_loop
+  loop {
+    dir = $check_queue.deq
+    puts "#{Time.now.iso8601} #{dir}: repeat check"
+    system("./repeat-check", dir, '18', '9')
+    puts "#{Time.now.iso8601} #{dir}: clean check"
+    system("./clean-check", dir)
+    $build_queue.enq dir
+  }
+end
+
+init_queue
+build_thread = Thread.new { build_loop }
+check_thread = Thread.new { check_loop }
+
+build_thread.join
+check_thread.join
