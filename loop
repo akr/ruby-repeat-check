@@ -27,8 +27,10 @@ def build_loop
     revs = svn_log_xml.scan(/<logentry\s+revision="([0-9]+)">/).map {|r,| r.to_i }
     if revs.length < 2
       cur_rev = max_rev = revs[0]
-      puts "#{Time.now.iso8601} #{dir}: no new revision: r#{max_rev} (HEAD)"
+      bs = !build_status.has_key?([dir, max_rev]) ? 'not built yet' : build_status[[dir, max_rev]] ? 'already succeed' : 'already failed'
+      puts "#{Time.now.iso8601} #{dir}: no new revision: r#{max_rev} (HEAD) #{bs}"
       if $all_dirs.all? {|dir2| build_status.has_key?([dir2, max_rev]) && !build_status[[dir2, max_rev]] }
+        puts "#{Time.now.iso8601} #{dir}: all directories failed.  sleep 10 minutes."
         sleep 600
       end
     else
