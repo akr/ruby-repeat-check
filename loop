@@ -42,7 +42,7 @@ def build_loop
       t1_str = t1.getutc.strftime("%Y%m%dT%H%M%SZ")
       build_log = "#{dir}/out/r#{max_rev}/#{t1_str}.build.log"
       FileUtils.mkpath File.dirname(build_log)
-      command = "make SVNUPOPTIONS=-r#{max_rev} up all install check"
+      command = "make SVNUPOPTIONS=-r#{max_rev} up all install"
       puts "#{t1.iso8601} #{dir}: #{command}"
       if system(command, :chdir=>ruby_dir, [:out, :err] => [build_log, "w"])
         puts "#{Time.now.iso8601} #{dir}: r#{max_rev} build success"
