@@ -4,7 +4,24 @@ require 'time'
 require 'thread'
 require 'fileutils'
 
+$:.unshift File.join(File.dirname(__FILE__), 'lib')
+require 'escape'
+
 STDOUT.sync = true
+
+def log(reason, fmt, param)
+  t = Time.now
+  msg = fmt.gsub(/\{([^{}]+)\}/) { param.fetch($1) }
+  print "#{t.iso8601} #{msg}\n"
+  h = { "time"=>t.iso8601, "reason"=>reason }
+  param.each {|k, v|
+    h[k.to_s] = v.to_s
+  }
+  ltsv_line = Escape.ltsv_line(h)
+  open("z.log.ltsv", "a") {|f|
+    f.print ltsv_line
+  }
+end
 
 def init_queue
   $build_queue = Queue.new
@@ -28,14 +45,14 @@ def build_loop
     if revs.length < 2
       cur_rev = max_rev = revs[0]
       bs = !build_status.has_key?([dir, max_rev]) ? 'not built yet' : build_status[[dir, max_rev]] ? 'already succeed' : 'already failed'
-      puts "#{Time.now.iso8601} #{dir}: no new revision: r#{max_rev} (HEAD) #{bs}"
+      log 'no_newrev', '{dir}: no new revision: r{max_rev} (HEAD) {build_status}', "dir"=>dir, "max_rev"=>max_rev, "build_status"=>bs
       if $all_dirs.all? {|dir2| build_status.has_key?([dir2, max_rev]) && !build_status[[dir2, max_rev]] }
-        puts "#{Time.now.iso8601} #{dir}: all directories failed.  sleep 10 minutes."
+        log 'build_failure_all', 'all directories build failed.  sleep 10 minutes.'
         sleep 600
       end
     else
       cur_rev, max_rev = revs
-      puts "#{Time.now.iso8601} #{dir}: new revision: r#{cur_rev} -> r#{max_rev}"
+      log 'newrev', '{dir}: new revision: r{cur_rev} -> r{max_rev}', "dir"=>dir, "cur_rev"=>cur_rev, "max_rev"=>max_rev
     end
     if cur_rev != max_rev || !build_status.has_key?([dir, max_rev])
       t1 = Time.now
@@ -43,14 +60,15 @@ def build_loop
       build_log = "#{dir}/out/r#{max_rev}/#{t1_str}.build.log"
       FileUtils.mkpath File.dirname(build_log)
       command = "make SVNUPOPTIONS=-r#{max_rev} up all install"
-      puts "#{t1.iso8601} #{dir}: #{command}"
+      log 'build_commandline', '{dir}: {rev} {command}', "dir"=>dir, "rev"=>max_rev, "command"=>command
       if system(command, :chdir=>ruby_dir, [:out, :err] => [build_log, "w"])
-        puts "#{Time.now.iso8601} #{dir}: r#{max_rev} build success"
+        build_result = 'success'
         build_status[[dir, max_rev]] = true
       else
-        puts "#{Time.now.iso8601} #{dir}: r#{max_rev} build failure"
+        build_result = 'failure'
         build_status[[dir, max_rev]] = false
       end
+      log 'build_result', '{dir}: r{rev} build {result}', "dir"=>dir, "rev"=>max_rev, "result"=>build_result
     end
     if build_status[[dir, max_rev]]
       $check_queue.enq dir
@@ -63,9 +81,9 @@ end
 def check_loop
   loop {
     dir = $check_queue.deq
-    puts "#{Time.now.iso8601} #{dir}: repeat check"
+    log 'repeat_check', '{dir}: repeat check', "dir"=>dir
     system("./repeat-check", dir, '18', '9')
-    puts "#{Time.now.iso8601} #{dir}: clean check"
+    log 'clean_check', '{dir}: clean check', "dir"=>dir
     system("./clean-check", dir)
     $build_queue.enq dir
   }
