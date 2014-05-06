@@ -9,6 +9,9 @@ require 'escape'
 
 STDOUT.sync = true
 
+$ltsv_log = open("z.log.ltsv", "a")
+$ltsv_log.sync = true
+
 def log(reason, fmt, param)
   t = Time.now
   msg = fmt.gsub(/\{([^{}]+)\}/) { param.fetch($1) }
@@ -18,9 +21,7 @@ def log(reason, fmt, param)
     h[k.to_s] = v.to_s
   }
   ltsv_line = Escape.ltsv_line(h)
-  open("z.log.ltsv", "a") {|f|
-    f.print ltsv_line
-  }
+  $ltsv_log.print ltsv_line
 end
 
 def init_queue
