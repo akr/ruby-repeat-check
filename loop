@@ -45,14 +45,14 @@ def build_loop
     if revs.length < 2
       cur_rev = max_rev = revs[0]
       bs = !build_status.has_key?([dir, max_rev]) ? 'not built yet' : build_status[[dir, max_rev]] ? 'already succeed' : 'already failed'
-      log 'no_newrev', '{dir}: no new revision: r{max_rev} (HEAD) {build_status}', "dir"=>dir, "max_rev"=>max_rev, "build_status"=>bs
+      log 'no_newrev', '{dir}: no new revision: r{rev} (HEAD) {build_status}', "dir"=>dir, "rev"=>max_rev, "build_status"=>bs
       if $all_dirs.all? {|dir2| build_status.has_key?([dir2, max_rev]) && !build_status[[dir2, max_rev]] }
         log 'build_failure_all', 'all directories build failed.  sleep 10 minutes.'
         sleep 600
       end
     else
       cur_rev, max_rev = revs
-      log 'newrev', '{dir}: new revision: r{cur_rev} -> r{max_rev}', "dir"=>dir, "cur_rev"=>cur_rev, "max_rev"=>max_rev
+      log 'newrev', '{dir}: new revision: r{old_rev} -> r{new_rev}', "dir"=>dir, "old_rev"=>cur_rev, "new_rev"=>max_rev
     end
     if cur_rev != max_rev || !build_status.has_key?([dir, max_rev])
       t1 = Time.now
@@ -60,7 +60,7 @@ def build_loop
       build_log = "#{dir}/out/r#{max_rev}/#{t1_str}.build.log"
       FileUtils.mkpath File.dirname(build_log)
       command = "make SVNUPOPTIONS=-r#{max_rev} up all install"
-      log 'build_commandline', '{dir}: {rev} {command}', "dir"=>dir, "rev"=>max_rev, "command"=>command
+      log 'build_command', '{dir}: {rev} {command}', "dir"=>dir, "rev"=>max_rev, "command"=>command
       if system(command, :chdir=>ruby_dir, [:out, :err] => [build_log, "w"])
         build_result = 'success'
         build_status[[dir, max_rev]] = true
