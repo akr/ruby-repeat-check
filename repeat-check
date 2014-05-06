@@ -7,6 +7,24 @@ require 'rbconfig'
 require 'fileutils'
 require 'time'
 
+$:.unshift File.join(File.dirname(__FILE__), 'lib')
+require 'escape'
+
+$ltsv_log = open("z.log.ltsv", "a")
+$ltsv_log.sync = true
+
+def log(reason, fmt, param)
+  t = Time.now
+  msg = fmt.gsub(/\{([^{}]+)\}/) { param.fetch($1) }
+  print "#{t.iso8601} #{msg}\n"
+  h = { "time"=>t.iso8601, "reason"=>reason }
+  param.each {|k, v|
+    h[k.to_s] = v.to_s
+  }
+  ltsv_line = Escape.ltsv_line(h)
+  $ltsv_log.print ltsv_line
+end
+
 def get_ruby_rev(dir)
   `#{dir}/ruby/ruby -e 'p RUBY_REVISION'`.chomp
 end
@@ -14,14 +32,27 @@ end
 def spawn_worker(pids, rev, d, i)
   pid = spawn(RbConfig.ruby, $0, '--worker--', rev, d, i.to_s)
   pids[pid] = [rev, d, i]
-  puts "#{Time.now.iso8601} #{d}: r#{rev} #{i} pid:#{pid} start"
+  log 'check_start', '{dir}: r{rev} {i} pid:{pid} start', "dir"=>d, "rev"=>rev, "i"=>i, "pid"=>pid
 end
 
 def wait_worker(pids)
   pid = Process.wait
   rev, d, i = pids[pid]
   error = File.exist?("#{d}/out/r#{rev}/error/#{i}") ? "failure" : "success"
-  puts "#{Time.now.iso8601} #{d}: r#{rev} #{i} pid:#{pid} end (#{error})"
+  h = { "dir"=>d, "rev"=>rev, "i"=>i, "pid"=>pid, "result"=>error }
+  %w[
+    elapsed-seconds
+    start-time
+    end-time
+    status
+    version
+  ].each {|fn|
+    begin
+      h[fn] = File.read("#{d}/out/r#{rev}/#{i}/#{fn}").chomp
+    rescue SystemCallError
+    end
+  }
+  log 'check_end', '{dir}: r{rev} {i} pid:{pid} end ({result})', h
   pids.delete(pid)
 end
 
