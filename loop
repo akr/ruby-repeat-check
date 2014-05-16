@@ -42,8 +42,18 @@ def build_loop
     ruby_dir = "#{dir}/ruby"
     svn_log_xml = IO.popen(%w[svn log --xml -r BASE:HEAD -l 2] +
                            [:chdir => ruby_dir]) {|f| f.read }
-    revs = svn_log_xml.scan(/<logentry\s+revision="([0-9]+)">/).map {|r,| r.to_i }
-    if revs.length < 2
+    if $?.success?
+      revs = svn_log_xml.scan(/<logentry\s+revision="([0-9]+)">/).map {|r,| r.to_i }
+    else
+      revs = []
+    end
+    if revs.length == 0
+      svn_info_xml = IO.popen(%w[svn info --xml] +
+                              [:chdir => ruby_dir]) {|f| f.read }
+      cur_rev, = svn_info_xml.scan(/<commit\s+revision="(\d+)">/).map {|r,| r.to_i }
+      log 'svn_log_failure', '{dir}: could not check new revision: r{rev}', "dir"=>dir, "rev"=>cur_rev
+      sleep 600
+    elsif revs.length == 1
       cur_rev = max_rev = revs[0]
       bs = !build_status.has_key?([dir, max_rev]) ? 'not built yet' : build_status[[dir, max_rev]] ? 'already succeed' : 'already failed'
       log 'headrev', '{dir}: no new revision: r{rev} (HEAD) {build_status}', "dir"=>dir, "rev"=>max_rev, "build_status"=>bs
