@@ -134,7 +134,7 @@ def worker
     File.open("#{d_i}/pid", "w") {|f| f.puts check_pid.to_s }
     Process.wait check_pid
     status = $?
-    File.open("#{d_i}/status", "w") {|f| f.puts status.to_s }
+    File.open("#{d_i}/status", "w") {|f| f.puts status.to_s.sub(/\Apid \d+ /, '') }
     t2 = Time.now
     File.open("#{d_i}/end-time", "w") {|f| f.puts t2.iso8601 }
     File.open("#{d_i}/elapsed-seconds", "w") {|f| f.puts(t2-t1) }
